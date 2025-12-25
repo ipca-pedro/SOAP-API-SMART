@@ -25,7 +25,7 @@ namespace SmartFactory.WinApp
             try
             {
                 // Ajusta a porta para a da tua API
-                var response = await _client.PostAsync("https://localhost:44345/api/login", content);
+                var response = await _client.PostAsync("http://localhost:44399/api/login", content);
 
                 if (response.IsSuccessStatusCode)
                 {

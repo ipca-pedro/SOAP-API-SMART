@@ -14,7 +14,7 @@ namespace SmartFactory.API.Services
 {
     public class JwtHandler : DelegatingHandler
     {
-        private const string Secret = "Chave_Super_Secreta_SmartFactory_2025_ISI";
+        private const string SecretKey = "ISI_SMART_FACTORY_SUPER_SECRET_KEY_2024_PROD";
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
@@ -26,7 +26,7 @@ namespace SmartFactory.API.Services
 
             try
             {
-                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Secret));
+                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SecretKey));
                 var handler = new JwtSecurityTokenHandler();
 
                 SecurityToken validatedToken;

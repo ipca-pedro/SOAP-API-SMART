@@ -20,19 +20,37 @@ namespace SmartFactory.WinApp
         {
             try
             {
-                // LIMPA HEADERS E ADICIONA O TOKEN JWT
-                _client.DefaultRequestHeaders.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", LoginForm.AccessToken);
+                using (var client = new HttpClient())
+                {
+                    // 1. ADICIONAR O TOKEN NO CABEÇALHO
+                    client.DefaultRequestHeaders.Authorization =
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", LoginForm.AccessToken);
 
-                string url = "https://localhost:44399/api/sensors";
-                var response = await _client.GetStringAsync(url);
+                    // 2. Chamar o endpoint da API
+                    string url = "https://localhost:44399/api/sensors";
+                    var response = await client.GetAsync(url);
 
-                var dados = JsonConvert.DeserializeObject<List<SensorData>>(response);
-                dgvSensors.DataSource = dados;
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var json = await response.Content.ReadAsStringAsync();
+                        var lista = JsonConvert.DeserializeObject<List<SensorData>>(json);
+
+                        // 3. Atualizar a Grid (DataGridView)
+                        dgvSensors.DataSource = lista;
+                    }
+                    else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    {
+                        MessageBox.Show("Sessão expirada ou acesso negado. Faça login novamente.");
+                    }
+                    else
+                    {
+                        MessageBox.Show("Erro na API: " + response.ReasonPhrase);
+                    }
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Erro: " + ex.Message);
+                MessageBox.Show("Erro de comunicação: " + ex.Message);
             }
         }
 
@@ -56,6 +74,11 @@ namespace SmartFactory.WinApp
         }
 
         private void panelTop_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
+
+        private void dgvSensors_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
 
         }

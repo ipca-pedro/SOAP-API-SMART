@@ -8,13 +8,13 @@ namespace SmartFactory.API.Services
 {
     public static class TokenService
     {
-        // Em produção, esta chave deve estar no Web.config e ser muito longa
-        private const string Secret = "Chave_Super_Secreta_SmartFactory_2025_ISI";
+        
+        private const string SecretKey = "ISI_SMART_FACTORY_SUPER_SECRET_KEY_2024_PROD";
 
         public static string GenerateToken(string username, string role)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(Secret);
+            var key = Encoding.ASCII.GetBytes(SecretKey);
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {

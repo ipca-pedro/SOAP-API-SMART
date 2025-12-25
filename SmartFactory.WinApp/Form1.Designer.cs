@@ -33,6 +33,7 @@
             this.dgvSensors.Name = "dgvSensors";
             this.dgvSensors.Size = new System.Drawing.Size(800, 370);
             this.dgvSensors.TabIndex = 0;
+            this.dgvSensors.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvSensors_CellContentClick);
             // 
             // btnRefresh
             // 
