@@ -7,19 +7,21 @@ namespace SmartFactory.Data
 {
     public class DbManager
     {
-        // 1. STRING DE CONEXÃO (Privada e única para a classe)
+        // 1. STRING DE CONEXÃO
         private static readonly string _connString = "Host=localhost;Port=5432;Database=iotdb;Username=admin;Password=changeme";
 
-        // 2. SELECT SENSORES (Para o dashboard REST)
+        // ==========================================
+        // 2. MONITORIZAÇÃO (REST - GET)
+        // ==========================================
         public List<SensorData> GetLatestReadings()
         {
             var list = new List<SensorData>();
             using (var conn = new NpgsqlConnection(_connString))
             {
                 conn.Open();
-                // SQL para obter a leitura mais recente de cada sensor
-                string sql = "SELECT DISTINCT ON (sensor) sensor, \"Polo\", \"Valor\", \"Unidade\", \"DataHora\" " +
-                             "FROM public.dados_sensores_limpos ORDER BY sensor, \"DataHora\" DESC";
+                // SQL ajustado para nomes de colunas padrão (minúsculas) do PostgreSQL
+                string sql = "SELECT DISTINCT ON (sensor) sensor, polo, valor, unidade, datahora " +
+                             "FROM public.dados_sensores_limpos ORDER BY sensor, datahora DESC";
 
                 using (var cmd = new NpgsqlCommand(sql, conn))
                 using (var reader = cmd.ExecuteReader())
@@ -29,10 +31,10 @@ namespace SmartFactory.Data
                         list.Add(new SensorData
                         {
                             SensorId = reader["sensor"].ToString(),
-                            Polo = reader["Polo"].ToString(),
-                            Valor = Convert.ToDouble(reader["Valor"]),
-                            Unidade = reader["Unidade"].ToString(),
-                            DataHora = Convert.ToDateTime(reader["DataHora"])
+                            Polo = reader["polo"].ToString(),
+                            Valor = Convert.ToDouble(reader["valor"]),
+                            Unidade = reader["unidade"].ToString(),
+                            DataHora = Convert.ToDateTime(reader["datahora"])
                         });
                     }
                 }
@@ -40,7 +42,95 @@ namespace SmartFactory.Data
             return list;
         }
 
-        // 3. INTERVENÇÃO MANUAL (Para o serviço SOAP)
+        // ==========================================
+        // 3. CRUD DE REGRAS (REST - POST, PUT, DELETE)
+        // ==========================================
+        public List<MachineRule> GetMachineRules()
+        {
+            var rules = new List<MachineRule>();
+            using (var conn = new NpgsqlConnection(_connString))
+            {
+                conn.Open();
+                string sql = "SELECT id, target_sensor_id, rule_name, threshold_value, condition_type, action_command, is_active FROM public.machine_rules";
+                using (var cmd = new NpgsqlCommand(sql, conn))
+                using (var dr = cmd.ExecuteReader())
+                {
+                    while (dr.Read())
+                    {
+                        rules.Add(new MachineRule
+                        {
+                            Id = (int)dr["id"],
+                            TargetSensorId = dr["target_sensor_id"].ToString(),
+                            RuleName = dr["rule_name"].ToString(),
+                            ThresholdValue = Convert.ToDouble(dr["threshold_value"]),
+                            ConditionType = dr["condition_type"].ToString(),
+                            ActionCommand = dr["action_command"].ToString(),
+                            IsActive = Convert.ToBoolean(dr["is_active"])
+                        });
+                    }
+                }
+            }
+            return rules;
+        }
+
+        public bool CreateRule(MachineRule rule)
+        {
+            using (var conn = new NpgsqlConnection(_connString))
+            {
+                conn.Open();
+                string sql = "INSERT INTO public.machine_rules (target_sensor_id, rule_name, threshold_value, condition_type, action_command, is_active) " +
+                             "VALUES (@tid, @name, @val, @type, @cmd, @active)";
+                using (var cmd = new NpgsqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("tid", rule.TargetSensorId);
+                    cmd.Parameters.AddWithValue("name", rule.RuleName);
+                    cmd.Parameters.AddWithValue("val", rule.ThresholdValue);
+                    cmd.Parameters.AddWithValue("type", rule.ConditionType);
+                    cmd.Parameters.AddWithValue("cmd", rule.ActionCommand);
+                    cmd.Parameters.AddWithValue("active", rule.IsActive);
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
+        }
+
+        public bool UpdateRule(MachineRule rule)
+        {
+            using (var conn = new NpgsqlConnection(_connString))
+            {
+                conn.Open();
+                string sql = "UPDATE public.machine_rules SET target_sensor_id = @tid, rule_name = @name, " +
+                             "threshold_value = @val, condition_type = @type, action_command = @cmd, is_active = @active WHERE id = @id";
+                using (var cmd = new NpgsqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("tid", rule.TargetSensorId);
+                    cmd.Parameters.AddWithValue("name", rule.RuleName);
+                    cmd.Parameters.AddWithValue("val", rule.ThresholdValue);
+                    cmd.Parameters.AddWithValue("type", rule.ConditionType);
+                    cmd.Parameters.AddWithValue("cmd", rule.ActionCommand);
+                    cmd.Parameters.AddWithValue("active", rule.IsActive);
+                    cmd.Parameters.AddWithValue("id", rule.Id);
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
+        }
+
+        public bool DeleteRule(int id)
+        {
+            using (var conn = new NpgsqlConnection(_connString))
+            {
+                conn.Open();
+                string sql = "DELETE FROM public.machine_rules WHERE id = @id";
+                using (var cmd = new NpgsqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("id", id);
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
+        }
+
+        // ==========================================
+        // 4. INTERVENÇÃO MANUAL (SOAP)
+        // ==========================================
         public bool ExecuteManualIntervention(int ruleId, double newThreshold, string machineName)
         {
             using (var conn = new NpgsqlConnection(_connString))
@@ -50,7 +140,6 @@ namespace SmartFactory.Data
                 {
                     try
                     {
-                        // SQL 1: Atualizar o limite da regra na tabela machine_rules
                         string sqlUpdate = "UPDATE public.machine_rules SET threshold_value = @val WHERE id = @id";
                         using (var cmd = new NpgsqlCommand(sqlUpdate, conn))
                         {
@@ -59,16 +148,13 @@ namespace SmartFactory.Data
                             cmd.ExecuteNonQuery();
                         }
 
-                        // SQL 2: Gravar o Log na tabela machine_logs (Ajustado às colunas do seu SQL)
-                        // De acordo com o seu ficheiro ISI-DB.sql, as colunas são: 
-                        // rule_applied_id, sensor_reading, command_issued
                         string sqlLog = "INSERT INTO public.machine_logs (rule_applied_id, sensor_reading, command_issued) " +
                                         "VALUES (@id, @val, @desc)";
                         using (var cmd = new NpgsqlCommand(sqlLog, conn))
                         {
                             cmd.Parameters.AddWithValue("id", ruleId);
                             cmd.Parameters.AddWithValue("val", newThreshold);
-                            cmd.Parameters.AddWithValue("desc", $"Ajuste manual para {machineName}");
+                            cmd.Parameters.AddWithValue("desc", $"Intervenção manual: {machineName}");
                             cmd.ExecuteNonQuery();
                         }
 
@@ -84,14 +170,14 @@ namespace SmartFactory.Data
             }
         }
 
-        // 4. VALIDAÇÃO DE UTILIZADOR (Para o Auth JWT)
+        // ==========================================
+        // 5. AUTENTICAÇÃO (JWT)
+        // ==========================================
         public User ValidateUser(string username, string password)
         {
-            // Corrigido: Agora usa _connString que é a variável definida no topo
             using (var conn = new NpgsqlConnection(_connString))
             {
                 conn.Open();
-                // SQL baseado na sua tabela app_users
                 string sql = "SELECT username, role FROM public.app_users WHERE username = @u AND password_hash = @p";
 
                 using (var cmd = new NpgsqlCommand(sql, conn))
