@@ -61,7 +61,7 @@
             this.lblUser.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.lblUser.Location = new System.Drawing.Point(47, 92);
             this.lblUser.Name = "lblUser";
-            this.lblUser.Size = new System.Drawing.Size(53, 15);
+            this.lblUser.Size = new System.Drawing.Size(61, 15);
             this.lblUser.TabIndex = 3;
             this.lblUser.Text = "Utilizador";
             // 
@@ -91,7 +91,7 @@
             this.lblTitle.Font = new System.Drawing.Font("Segoe UI", 16F, System.Drawing.FontStyle.Bold);
             this.lblTitle.Location = new System.Drawing.Point(85, 30);
             this.lblTitle.Name = "lblTitle";
-            this.lblTitle.Size = new System.Drawing.Size(180, 30);
+            this.lblTitle.Size = new System.Drawing.Size(185, 30);
             this.lblTitle.TabIndex = 6;
             this.lblTitle.Text = "SmartFactory ISI";
             // 
@@ -113,8 +113,10 @@
             this.Name = "LoginForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Acesso ao Sistema";
+            this.Load += new System.EventHandler(this.LoginForm_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
+
         }
 
         private System.Windows.Forms.TextBox txtUser;
