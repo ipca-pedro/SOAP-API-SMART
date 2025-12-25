@@ -11,7 +11,7 @@ namespace SmartFactory.WinApp
 {
     public partial class Form1 : Form
     {
-        private readonly string baseUri = "https://localhost:44399/api/sensors"; 
+        private readonly string baseUri = "http://localhost:44399/api";
 
         public Form1()
         {
@@ -36,7 +36,7 @@ namespace SmartFactory.WinApp
                 using (var client = new HttpClient())
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", LoginForm.AccessToken);
-                    var response = await client.GetAsync(baseUri + "sensors");
+                    var response = await client.GetAsync(baseUri + "/sensors");
 
                     if (response.IsSuccessStatusCode)
                     {
@@ -44,10 +44,14 @@ namespace SmartFactory.WinApp
                         var data = JsonConvert.DeserializeObject<List<SensorData>>(json);
                         dgvSensors.DataSource = data;
                     }
-                    else { MessageBox.Show("Erro ao obter sensores: " + response.StatusCode); }
+                    else
+                    {
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        MessageBox.Show($"Erro ao obter sensores ({response.StatusCode}):\n{errorContent}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
             }
-            catch (Exception ex) { MessageBox.Show("Erro: " + ex.Message); }
+            catch (Exception ex) { MessageBox.Show("Erro de ligação: " + ex.Message, "Erro Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
 
         // ==========================================
@@ -60,7 +64,7 @@ namespace SmartFactory.WinApp
                 using (var client = new HttpClient())
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", LoginForm.AccessToken);
-                    var response = await client.GetAsync(baseUri + "rules");
+                    var response = await client.GetAsync(baseUri + "/rules");
 
                     if (response.IsSuccessStatusCode)
                     {
@@ -68,42 +72,49 @@ namespace SmartFactory.WinApp
                         var data = JsonConvert.DeserializeObject<List<MachineRule>>(json);
                         dgvRules.DataSource = data;
                     }
-                    else { MessageBox.Show("Acesso negado. Apenas Admins podem ver as regras."); }
+                    else
+                    {
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        MessageBox.Show($"Erro ao obter regras ({response.StatusCode}):\n{errorContent}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
             }
-            catch (Exception ex) { MessageBox.Show("Erro: " + ex.Message); }
+            catch (Exception ex) { MessageBox.Show("Erro de ligação: " + ex.Message, "Erro Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
 
         private async void btnAddRule_Click(object sender, EventArgs e)
         {
-            // Exemplo de criação de uma regra rápida para teste
-            var newRule = new MachineRule
+            // Abrir diálogo para criar uma nova regra
+            using (var addRuleForm = new AddRuleForm())
             {
-                TargetSensorId = "TEMP_01",
-                RuleName = "Alerta de Calor",
-                ThresholdValue = 50.5,
-                ConditionType = ">",
-                ActionCommand = "STOP_MACHINE",
-                IsActive = true
-            };
-
-            try
-            {
-                using (var client = new HttpClient())
+                if (addRuleForm.ShowDialog(this) == DialogResult.OK)
                 {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", LoginForm.AccessToken);
-                    var json = JsonConvert.SerializeObject(newRule);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    var newRule = addRuleForm.Rule;
 
-                    var response = await client.PostAsync(baseUri + "rules", content);
-                    if (response.IsSuccessStatusCode)
+                    try
                     {
-                        MessageBox.Show("Regra criada!");
-                        btnRefreshRules_Click(null, null); // Atualiza a grelha
+                        using (var client = new HttpClient())
+                        {
+                            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", LoginForm.AccessToken);
+                            var json = JsonConvert.SerializeObject(newRule);
+                            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                            var response = await client.PostAsync(baseUri + "/rules", content);
+                            if (response.IsSuccessStatusCode)
+                            {
+                                MessageBox.Show("Regra criada com sucesso!", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                btnRefreshRules_Click(null, null);
+                            }
+                            else
+                            {
+                                var errorContent = await response.Content.ReadAsStringAsync();
+                                MessageBox.Show($"Erro ao criar regra ({response.StatusCode}):\n{errorContent}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }
+                        }
                     }
+                    catch (Exception ex) { MessageBox.Show("Erro de ligação: " + ex.Message, "Erro Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error); }
                 }
             }
-            catch (Exception ex) { MessageBox.Show("Erro: " + ex.Message); }
         }
 
 
@@ -120,16 +131,21 @@ namespace SmartFactory.WinApp
                 using (var client = new HttpClient())
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", LoginForm.AccessToken);
-                    var response = await client.DeleteAsync(baseUri + "rules/" + id);
+                    var response = await client.DeleteAsync(baseUri + "/rules/" + id);
 
                     if (response.IsSuccessStatusCode)
                     {
                         MessageBox.Show("Regra removida!");
                         btnRefreshRules_Click(null, null);
                     }
+                    else
+                    {
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        MessageBox.Show($"Erro ao eliminar regra ({response.StatusCode}):\n{errorContent}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
             }
-            catch (Exception ex) { MessageBox.Show("Erro: " + ex.Message); }
+            catch (Exception ex) { MessageBox.Show("Erro de ligação: " + ex.Message, "Erro Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
     }
 }

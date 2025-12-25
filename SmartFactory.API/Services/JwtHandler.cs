@@ -20,12 +20,27 @@ namespace SmartFactory.API.Services
         {
             IEnumerable<string> authHeaders;
             if (!request.Headers.TryGetValues("Authorization", out authHeaders))
+            {
+                // Sem header Authorization -> deixa passar (o [Authorize] vai rejeitar se necessário)
                 return base.SendAsync(request, cancellationToken);
+            }
 
-            var bearerToken = string.Join("", authHeaders).Replace("Bearer ", "");
+            var authHeader = string.Join("", authHeaders);
+            if (string.IsNullOrWhiteSpace(authHeader) || !authHeader.StartsWith("Bearer "))
+            {
+                return base.SendAsync(request, cancellationToken);
+            }
+
+            var bearerToken = authHeader.Replace("Bearer ", "").Trim();
 
             try
             {
+                if (string.IsNullOrWhiteSpace(bearerToken))
+                {
+                    return Task.FromResult(request.CreateResponse(HttpStatusCode.Unauthorized, 
+                        new { message = "Token JWT vazio." }));
+                }
+
                 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SecretKey));
                 var handler = new JwtSecurityTokenHandler();
 
@@ -35,17 +50,30 @@ namespace SmartFactory.API.Services
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = key,
                     ValidateIssuer = false,
-                    ValidateAudience = false
+                    ValidateAudience = false,
+                    ValidateLifetime = true
                 }, out validatedToken);
 
                 Thread.CurrentPrincipal = principal;
-                if (HttpContext.Current != null) HttpContext.Current.User = principal;
+                if (HttpContext.Current != null) 
+                    HttpContext.Current.User = principal;
 
                 return base.SendAsync(request, cancellationToken);
             }
-            catch
+            catch (SecurityTokenExpiredException)
             {
-                return Task.FromResult(request.CreateResponse(HttpStatusCode.Unauthorized));
+                return Task.FromResult(request.CreateResponse(HttpStatusCode.Unauthorized, 
+                    new { message = "Token JWT expirado." }));
+            }
+            catch (SecurityTokenInvalidSignatureException)
+            {
+                return Task.FromResult(request.CreateResponse(HttpStatusCode.Unauthorized, 
+                    new { message = "Assinatura do token inválida." }));
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult(request.CreateResponse(HttpStatusCode.Unauthorized, 
+                    new { message = $"Erro ao validar token: {ex.Message}" }));
             }
         }
     }

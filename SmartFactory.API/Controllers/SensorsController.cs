@@ -6,25 +6,20 @@ using System.Web.Http;
 
 namespace SmartFactory.API.Controllers
 {
+    [Authorize]
+    [RoutePrefix("api/sensors")] 
     public class SensorsController : ApiController
     {
-        private readonly DbManager _db = new DbManager();
+        private DbManager _db = new DbManager();
 
-        // Este é o único método Get necessário agora
-        [Authorize]
         [HttpGet]
+        [Route("")] // Rota: GET api/sensors
         public IHttpActionResult Get()
         {
             try
             {
-                var lista = _db.GetLatestReadings();
-
-                if (lista == null)
-                {
-                    return NotFound();
-                }
-
-                return Ok(lista);
+                var readings = _db.GetLatestReadings();
+                return Ok(readings);
             }
             catch (Exception ex)
             {

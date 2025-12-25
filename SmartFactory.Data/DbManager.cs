@@ -19,9 +19,9 @@ namespace SmartFactory.Data
             using (var conn = new NpgsqlConnection(_connString))
             {
                 conn.Open();
-                // SQL ajustado para nomes de colunas padrão (minúsculas) do PostgreSQL
-                string sql = "SELECT DISTINCT ON (sensor) sensor, polo, valor, unidade, datahora " +
-                             "FROM public.dados_sensores_limpos ORDER BY sensor, datahora DESC";
+                // SQL com nomes de colunas case-sensitive (com aspas duplas)
+                string sql = "SELECT DISTINCT ON (sensor) sensor, \"Polo\", \"Valor\", \"Unidade\", \"DataHora\" " +
+                             "FROM public.dados_sensores_limpos ORDER BY sensor, \"DataHora\" DESC";
 
                 using (var cmd = new NpgsqlCommand(sql, conn))
                 using (var reader = cmd.ExecuteReader())
@@ -31,10 +31,10 @@ namespace SmartFactory.Data
                         list.Add(new SensorData
                         {
                             SensorId = reader["sensor"].ToString(),
-                            Polo = reader["polo"].ToString(),
-                            Valor = Convert.ToDouble(reader["valor"]),
-                            Unidade = reader["unidade"].ToString(),
-                            DataHora = Convert.ToDateTime(reader["datahora"])
+                            Polo = reader["Polo"].ToString(),
+                            Valor = Convert.ToDouble(reader["Valor"]),
+                            Unidade = reader["Unidade"].ToString(),
+                            DataHora = Convert.ToDateTime(reader["DataHora"])
                         });
                     }
                 }
