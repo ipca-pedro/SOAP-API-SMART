@@ -13,7 +13,7 @@ namespace SmartFactory.Data
     public class DbManager
     {
         /// <summary>
-        /// String de conexão para aceder à base de dados PostgreSQL.
+        /// String de conexão para aceder à base de dados PostgreSQL
         /// Contém: Host, Porta, Nome da BD, Utilizador e Senha.
         /// </summary>
         /// <param name="_connString">Connection string PostgreSQL - Host=localhost;Port=5432;Database=iotdb;Username=admin;Password=changeme</param>
