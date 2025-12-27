@@ -96,6 +96,9 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <EmbeddedResource Include="ViolationsForm.resx">
+      <DependentUpon>ViolationsForm.cs</DependentUpon>
+    </EmbeddedResource>
     <None Include="Connected Services\ServiceRef\MachineService.wsdl" />
     <None Include="Connected Services\ServiceRef\MachineService.xsd">
       <SubType>Designer</SubType>

@@ -190,7 +190,7 @@ namespace SmartFactory.Data
         // SEÇÃO 3: INTERVENÇÃO MANUAL (SOAP)
         // Métodos para intervir manualmente no sistema e registar ações
         // ==========================================
-        
+
         /// <summary>
         /// Executa uma intervenção manual no sistema.
         /// Actualiza o limiar de uma regra e registra a intervenção em logs.
@@ -204,44 +204,32 @@ namespace SmartFactory.Data
         /// Se alguma operação falhar, toda a transação é revertida (ROLLBACK).
         /// Garante que o UPDATE e o INSERT ocorrem atomicamente.
         /// </remarks>
-        public bool ExecuteManualIntervention(int ruleId, double newThreshold, string machineName)
+        public bool ExecuteManualIntervention(int ruleId, double reading, string command)
         {
-            using (var conn = new NpgsqlConnection(_connString))
+            try
             {
-                conn.Open();
-                using (var trans = conn.BeginTransaction())
+                using (var conn = new Npgsql.NpgsqlConnection(_connString))
                 {
-                    try
-                    {
-                        // Actualizar o limiar da regra
-                        string sqlUpdate = "UPDATE public.machine_rules SET threshold_value = @val WHERE id = @id";
-                        using (var cmd = new NpgsqlCommand(sqlUpdate, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@val", newThreshold);
-                            cmd.Parameters.AddWithValue("@id", ruleId);
-                            cmd.ExecuteNonQuery();
-                        }
+                    conn.Open();
+                    // SQL limpo: ID, Data e Status são gerados automaticamente pela BD
+                    string sql = @"INSERT INTO public.machine_logs 
+                          (rule_applied_id, sensor_reading, command_issued) 
+                          VALUES (@rid, @read, @cmd)";
 
-                        // Registar a intervenção em machine_logs
-                        string sqlLog = "INSERT INTO public.machine_logs (rule_applied_id, sensor_reading, command_issued) " +
-                                        "VALUES (@id, @val, @desc)";
-                        using (var cmd = new NpgsqlCommand(sqlLog, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@id", ruleId);
-                            cmd.Parameters.AddWithValue("@val", newThreshold);
-                            cmd.Parameters.AddWithValue("@desc", $"Intervenção manual: {machineName}");
-                            cmd.ExecuteNonQuery();
-                        }
-
-                        trans.Commit();
-                        return true;
-                    }
-                    catch (Exception)
+                    using (var cmd = new Npgsql.NpgsqlCommand(sql, conn))
                     {
-                        trans.Rollback();
-                        return false;
+                        cmd.Parameters.AddWithValue("rid", ruleId);
+                        cmd.Parameters.AddWithValue("read", reading);
+                        cmd.Parameters.AddWithValue("cmd", command);
+
+                        return cmd.ExecuteNonQuery() > 0;
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Erro DB (SOAP): " + ex.Message);
+                return false;
             }
         }
 
@@ -249,7 +237,7 @@ namespace SmartFactory.Data
         // SEÇÃO 4: AUTENTICAÇÃO (JWT)
         // Métodos para validação de utilizadores e geração de tokens
         // ==========================================
-        
+
         /// <summary>
         /// Valida as credenciais de um utilizador.
         /// Consulta a tabela 'app_users' para verificar username e password.
@@ -333,40 +321,5 @@ namespace SmartFactory.Data
             return null;
         }
 
-        // ==========================================
-        // SEÇÃO 6: LOG DE EXECUÇÃO DE REGRAS
-        // Métodos para registar ações executadas no sistema
-        // ==========================================
-        
-        /// <summary>
-        /// Registra a execução de uma ação numa tabela de auditoria.
-        /// Insere um novo registo na tabela 'machine_logs' com os detalhes da execução.
-        /// </summary>
-        /// <param name="ruleId">Identificador da regra que foi executada (int) - Campo 'rule_applied_id'</param>
-        /// <param name="sensorReading">Valor do sensor no momento da execução (double) - Campo 'sensor_reading'</param>
-        /// <param name="commandIssued">Comando/ação que foi executada (string) - Campo 'command_issued'</param>
-        /// <returns>true se o log foi registado com sucesso, false caso contrário</returns>
-        /// <remarks>
-        /// Este método é chamado automaticamente pelo SOAP service quando uma ação é executada.
-        /// O timestamp (NOW()) é preenchido automaticamente pelo PostgreSQL.
-        /// O status é sempre 'EXECUTED' nesta versão.
-        /// Garante auditoria completa de todas as ações do sistema.
-        /// </remarks>
-        public bool LogRuleExecution(int ruleId, double sensorReading, string commandIssued)
-        {
-            using (var conn = new NpgsqlConnection(_connString))
-            {
-                conn.Open();
-                string sql = "INSERT INTO public.machine_logs (rule_applied_id, sensor_reading, command_issued, executed_at, status) " +
-                             "VALUES (@id, @val, @cmd, NOW(), 'EXECUTED')";
-                using (var cmd = new NpgsqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@id", ruleId);
-                    cmd.Parameters.AddWithValue("@val", sensorReading);
-                    cmd.Parameters.AddWithValue("@cmd", commandIssued);
-                    return cmd.ExecuteNonQuery() > 0;
-                }
-            }
-        }
     }
 }

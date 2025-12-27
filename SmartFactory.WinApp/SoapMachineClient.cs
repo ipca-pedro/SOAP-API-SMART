@@ -90,6 +90,57 @@ namespace SmartFactory.WinApp
                 return null;
             }
         }
+
+        /// <summary>
+        /// Regista uma ação/log de máquina na base de dados via SOAP.
+        /// Envia apenas os 3 parâmetros necessários: ruleId, leitura e comando.
+        /// A BD trata automaticamente do id, executed_at e status.
+        /// </summary>
+        /// <param name="ruleId">ID da regra aplicada</param>
+        /// <param name="leitura">Valor do sensor no momento da ação</param>
+        /// <param name="comando">Comando/ação executada</param>
+        /// <returns>true se o registo foi bem-sucedido, false caso contrário</returns>
+        public static bool RegistarAcao(int ruleId, double leitura, string comando)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"[SOAP-DEBUG] RegistarAcao - RuleId: {ruleId}, Leitura: {leitura}, Comando: {comando}");
+
+                var binding = new BasicHttpBinding();
+                binding.MaxBufferSize = 2147483647;
+                binding.MaxReceivedMessageSize = 2147483647;
+                binding.SendTimeout = TimeSpan.FromSeconds(30);
+                binding.ReceiveTimeout = TimeSpan.FromSeconds(30);
+
+                var endpoint = new EndpointAddress(ServiceUrl);
+
+                var factory = new ChannelFactory<IMachineServiceSoap>(binding, endpoint);
+                var client = factory.CreateChannel();
+
+                bool result = client.RegistarAcao(ruleId, leitura, comando);
+
+                System.Diagnostics.Debug.WriteLine($"[SOAP-DEBUG] RegistarAcao - Resultado: {result}");
+
+                ((IClientChannel)client).Close();
+
+                return result;
+            }
+            catch (CommunicationException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SOAP-ERRO-COMUNICACAO] RegistarAcao: {ex.Message}");
+                return false;
+            }
+            catch (TimeoutException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SOAP-ERRO-TIMEOUT] RegistarAcao: {ex.Message}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SOAP-ERRO-GERAL] RegistarAcao: {ex.GetType().Name}: {ex.Message}");
+                return false;
+            }
+        }
     }
 
     /// <summary>
@@ -104,5 +155,11 @@ namespace SmartFactory.WinApp
 
         [OperationContract]
         string GetRuleDetails(int ruleId);
+
+        /// <summary>
+        /// Regista uma ação/log de máquina na base de dados.
+        /// </summary>
+        [OperationContract]
+        bool RegistarAcao(int ruleId, double leitura, string comando);
     }
 }

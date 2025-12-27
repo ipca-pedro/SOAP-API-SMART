@@ -6,12 +6,6 @@ namespace SmartFactory.Soap
     public interface IMachineService
     {
         [OperationContract]
-        bool SetMachinePerformance(int ruleId, double newThreshold, string machineName);
-
-        [OperationContract]
-        bool ExecuteRuleAction(int ruleId, string actionCommand, double currentValue, string sensorId);
-
-        [OperationContract]
-        string GetRuleDetails(int ruleId);
+        bool RegistarAcao(int ruleId, double leitura, string comando);
     }
 }
